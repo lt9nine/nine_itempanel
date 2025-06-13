@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FiveM Items Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .json-editor {
+            font-family: monospace;
+            white-space: pre;
+        }
+        .collapsible {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .collapsible-header {
+            padding: 0.75rem;
+            background-color: #f9fafb;
+            border-radius: 0.5rem 0.5rem 0 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .collapsible-content {
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        .collapsible-content.hidden {
+            display: none;
+        }
+        .sort-indicator {
+            display: inline-block;
+            margin-left: 4px;
+            opacity: 0;
+        }
+        .sort-indicator.active {
+            opacity: 1;
+        }
+        th[data-sort="asc"] .sort-indicator::after {
+            content: "↑";
+        }
+        th[data-sort="desc"] .sort-indicator::after {
+            content: "↓";
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <nav class="bg-white text-gray-800 p-4 border-b border-gray-200">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">Nine's Item Manager</h1>
+            <div class="flex items-center space-x-4">
+                <button onclick="logout()" class="bg-gray-50 text-gray-500 px-4 py-2 rounded hover:bg-gray-100 inline-flex items-center justify-center border border-gray-200">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 flex-grow">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold">Items</h2>
+            <div class="flex items-center gap-3">
+                <button onclick="showAddModal()" class="bg-gray-50 text-gray-500 px-4 py-2 rounded hover:bg-gray-100 inline-flex items-center justify-center border border-gray-200">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Add Item
+                </button>
+                <button onclick="showImportModal()" class="bg-gray-50 text-gray-500 px-4 py-2 rounded hover:bg-gray-100 inline-flex items-center justify-center border border-gray-200">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    Import Lua
+                </button>
+                <button onclick="downloadLua()" class="bg-gray-50 text-gray-500 px-4 py-2 rounded hover:bg-gray-100 inline-flex items-center justify-center border border-gray-200">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Export Lua
+                </button>
+            </div>
+        </div>
+
+        <!-- Search and Sort -->
+        <div class="mb-4 flex items-center space-x-4">
+            <div class="flex-1">
+                <input type="text" id="searchInput" placeholder="Search items..." 
+                    class="w-full h-10 px-4 text-base rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    oninput="filterItems()">
+            </div>
+            <div class="flex items-center space-x-2">
+                <label class="text-base text-gray-600">Sort by:</label>
+                <select id="sortField" onchange="sortItems()" 
+                    class="h-10 px-3 text-base rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="name">Name</option>
+                    <option value="label">Label</option>
+                    <option value="weight">Weight</option>
+                </select>
+                <button onclick="toggleSortDirection()" id="sortDirection" 
+                    class="h-10 w-10 text-lg text-gray-600 hover:text-gray-800 flex items-center justify-center">
+                    ↑
+                </button>
+            </div>
+        </div>
+
+        <div class="flex gap-6">
+            <!-- Items Table -->
+            <div class="flex-1">
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onclick="sortBy('name')">
+                                    Name
+                                    <span class="sort-indicator" data-field="name"></span>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onclick="sortBy('label')">
+                                    Label
+                                    <span class="sort-indicator" data-field="label"></span>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onclick="sortBy('weight')">
+                                    Weight
+                                    <span class="sort-indicator" data-field="weight"></span>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTable" class="bg-white divide-y divide-gray-200">
+                            <!-- Items will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Statistics Panel -->
+            <div class="w-80">
+                <div class="bg-white rounded-lg shadow p-4">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Overview</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="text-sm text-gray-500">Total Items</div>
+                            <div class="text-2xl font-semibold text-gray-900" id="totalItems">0</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Uploaded Images</div>
+                            <div class="text-2xl font-semibold text-gray-900" id="uploadedImages">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white text-gray-800 py-4 mt-auto border-t border-gray-200">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div class="text-sm">
+                Created by Nine • <span class="text-gray-500">© 2025</span>
+            </div>
+            <div class="flex space-x-4">
+                <a href="https://discord.gg/your-discord" target="_blank" class="text-gray-500 hover:text-gray-800 transition-colors">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                    </svg>
+                </a>
+                <a href="https://github.com/lt9nine" target="_blank" class="text-gray-500 hover:text-gray-800 transition-colors">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.236 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Add/Edit Modal -->
+    <div id="itemModal" class="modal">
+        <div class="bg-white p-6 rounded-lg shadow-lg m-auto w-[800px]">
+            <h3 id="modalTitle" class="text-lg font-medium mb-4">Add New Item</h3>
+            <form id="itemForm" onsubmit="handleSubmit(event)" class="space-y-4">
+                <input type="hidden" id="itemId">
+                
+                <!-- Basic Fields -->
+                <div class="collapsible">
+                    <div class="collapsible-header" onclick="toggleSection('basicFields')">
+                        <h4 class="font-medium">Basic Properties</h4>
+                        <span class="text-gray-500">▼</span>
+                    </div>
+                    <div id="basicFields" class="collapsible-content">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Name</label>
+                                <input type="text" id="itemName" required
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Label</label>
+                                <input type="text" id="itemLabel" required
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Weight</label>
+                                <input type="number" id="itemWeight" step="0.1"
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Degrade (minutes)</label>
+                                <input type="number" id="itemDegrade" step="1"
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Consume</label>
+                                <input type="number" id="itemConsume" step="0.1"
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Stackable</label>
+                                <div class="mt-1">
+                                    <label class="inline-flex items-center">
+                                        <input type="checkbox" id="itemStack"
+                                            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2 text-sm text-gray-600">Allow stacking of this item</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client Section -->
+                <div class="collapsible">
+                    <div class="collapsible-header" onclick="toggleSection('clientFields')">
+                        <h4 class="font-medium">Client Properties</h4>
+                        <span class="text-gray-500">▼</span>
+                    </div>
+                    <div id="clientFields" class="collapsible-content hidden">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Image Type</label>
+                                <div class="mt-1 space-y-2">
+                                    <div class="flex items-center space-x-2">
+                                        <input type="radio" id="imageTypeLocal" name="imageType" value="local" checked
+                                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                            onchange="toggleImageInput()">
+                                        <label for="imageTypeLocal" class="text-sm text-gray-600">Local Filepath</label>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <input type="radio" id="imageTypeWeb" name="imageType" value="web"
+                                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                            onchange="toggleImageInput()">
+                                        <label for="imageTypeWeb" class="text-sm text-gray-600">Web URL</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="localImageInput">
+                                <label class="block text-sm font-medium text-gray-700">Local Filepath</label>
+                                <input type="text" id="clientImage"
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    placeholder="e.g., images/items/weapon.png">
+                            </div>
+                            <div id="webImageInput" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700">Web URL</label>
+                                <div class="mt-1 flex items-center space-x-2">
+                                    <input type="text" id="clientImageUrl"
+                                        class="block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        placeholder="e.g., https://example.com/image.png">
+                                    <input type="file" id="imageUpload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                                    <button type="button" onclick="document.getElementById('imageUpload').click()"
+                                        class="px-3 py-2 bg-gray-50 text-gray-500 rounded hover:bg-gray-100 border border-gray-200 text-sm">
+                                        Upload
+                                    </button>
+                                </div>
+                                <div id="imagePreview" class="mt-2 hidden">
+                                    <img src="" alt="Preview" class="max-h-32 rounded">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Animation</label>
+                                <input type="text" id="clientAnim"
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Prop</label>
+                                <input type="text" id="clientProp"
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Use Time (ms)</label>
+                                <input type="number" id="clientUseTime"
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Notification</label>
+                                <input type="text" id="clientNotification"
+                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    placeholder="e.g., 'You used the item'">
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <label class="block text-sm font-medium text-gray-700">Status Effects (JSON)</label>
+                            <textarea id="clientStatus" rows="2"
+                                class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Section -->
+                <div class="collapsible">
+                    <div class="collapsible-header" onclick="toggleSection('serverFields')">
+                        <h4 class="font-medium">Server Properties</h4>
+                        <span class="text-gray-500">▼</span>
+                    </div>
+                    <div id="serverFields" class="collapsible-content hidden">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Server Export</label>
+                            <input type="text" id="serverExport"
+                                class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buttons Section -->
+                <div class="collapsible">
+                    <div class="collapsible-header" onclick="toggleSection('buttonsFields')">
+                        <h4 class="font-medium">Buttons</h4>
+                        <span class="text-gray-500">▼</span>
+                    </div>
+                    <div id="buttonsFields" class="collapsible-content hidden">
+                        <div id="buttonsContainer" class="space-y-2">
+                            <!-- Buttons will be added here -->
+                        </div>
+                        <button type="button" onclick="addButton()" class="mt-2 text-blue-600 hover:text-blue-800">
+                            + Add Button
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Custom Fields Section -->
+                <div class="collapsible">
+                    <div class="collapsible-header" onclick="toggleSection('customFields')">
+                        <h4 class="font-medium">Custom Fields</h4>
+                        <span class="text-gray-500">▼</span>
+                    </div>
+                    <div id="customFields" class="collapsible-content hidden">
+                        <div id="customFieldsContainer" class="space-y-2">
+                            <!-- Custom fields will be added here -->
+                        </div>
+                        <div class="mt-4 space-y-2">
+                            <button type="button" onclick="addCustomField('simple')" class="text-blue-600 hover:text-blue-800">
+                                + Add Simple Field
+                            </button>
+                            <button type="button" onclick="addCustomField('object')" class="text-blue-600 hover:text-blue-800 ml-4">
+                                + Add Object Field
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-4">
+                    <button type="button" onclick="closeModal()"
+                        class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="importModal" class="modal">
+        <div class="bg-white p-6 rounded-lg shadow-lg m-auto w-[800px]">
+            <h3 class="text-lg font-medium mb-4">Import Items from Lua</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Paste Lua code here:</label>
+                    <textarea id="luaImport" rows="10" class="w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"></textarea>
+                </div>
+                <div class="text-sm text-gray-600">
+                    <p>You can paste either a single item or multiple items in Lua format.</p>
+                    <p>Example single item:</p>
+                    <pre class="bg-gray-100 p-2 rounded mt-1">
+['item_name'] = {
+    label = 'Item Label',
+    weight = 1.0
+}</pre>
+                    <p class="mt-2">Example multiple items:</p>
+                    <pre class="bg-gray-100 p-2 rounded mt-1">
+{
+    ['item1'] = {
+        label = 'Item 1',
+        weight = 1.0
+    },
+    ['item2'] = {
+        label = 'Item 2',
+        weight = 2.0
+    }
+}</pre>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeImportModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                        Cancel
+                    </button>
+                    <button onclick="importLuaItems()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication status
+        async function checkAuth() {
+            try {
+                const response = await fetch('/check-auth');
+                const data = await response.json();
+                if (!data.authenticated) {
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/login.html';
+            }
+        }
+
+        // Check auth status on page load and periodically
+        checkAuth();
+        setInterval(checkAuth, 60000); // Check every minute
+
+        // Add auth check to all fetch requests
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+            const response = await originalFetch(...args);
+            if (response.status === 401) {
+                window.location.href = '/login.html';
+            }
+            return response;
+        };
+
+        // Load items from server
+        let items = [];
+
+        // Load items from server
+        async function loadItems() {
+            try {
+                const response = await fetch('/items.json');
+                if (response.ok) {
+                    items = await response.json();
+                }
+                displayItems();
+            } catch (error) {
+                console.error('Error loading items:', error);
+            }
+        }
+
+        // Save items to server
+        async function saveItems() {
+            try {
+                const response = await fetch('/save-items', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ items }),
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to save items');
+                }
+            } catch (error) {
+                console.error('Error saving items:', error);
+                alert('Failed to save items. Please try again.');
+            }
+        }
+
+        // Toggle section visibility
+        function toggleSection(sectionId) {
+            const content = document.getElementById(sectionId);
+            content.classList.toggle('hidden');
+        }
+
+        let currentSort = {
+            field: 'name',
+            direction: 'asc'
+        };
+
+        // Filter and sort items
+        function filterAndSortItems() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filteredItems = items.filter(item => {
+                return Object.values(item).some(value => 
+                    String(value).toLowerCase().includes(searchTerm)
+                );
+            });
+
+            return sortItemsList(filteredItems);
+        }
+
+        // Sort items list
+        function sortItemsList(itemsList) {
+            return [...itemsList].sort((a, b) => {
+                let aValue = a[currentSort.field];
+                let bValue = b[currentSort.field];
+
+                // Handle numeric values
+                if (currentSort.field === 'weight') {
+                    aValue = parseFloat(aValue) || 0;
+                    bValue = parseFloat(bValue) || 0;
+                } else {
+                    // Handle string values
+                    aValue = String(aValue || '').toLowerCase();
+                    bValue = String(bValue || '').toLowerCase();
+                }
+
+                if (aValue < bValue) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        // Filter items based on search
+        function filterItems() {
+            displayItems();
+        }
+
+        // Sort items
+        function sortItems() {
+            const field = document.getElementById('sortField').value;
+            sortBy(field);
+        }
+
+        // Sort by specific field
+        function sortBy(field) {
+            if (currentSort.field === field) {
+                toggleSortDirection();
+            } else {
+                currentSort.field = field;
+                currentSort.direction = 'asc';
+                updateSortIndicators();
+            }
+            displayItems();
+        }
+
+        // Toggle sort direction
+        function toggleSortDirection() {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            document.getElementById('sortDirection').textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+            updateSortIndicators();
+            displayItems();
+        }
+
+        // Update sort indicators
+        function updateSortIndicators() {
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.classList.remove('active');
+                if (indicator.dataset.field === currentSort.field) {
+                    indicator.classList.add('active');
+                    indicator.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+                }
+            });
+        }
+
+        // Display items in table
+        function displayItems() {
+            const table = document.getElementById('itemsTable');
+            const sortedItems = filterAndSortItems();
+            
+            table.innerHTML = sortedItems.map((item, index) => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">${item.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${item.label}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${item.weight || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button onclick="editItem(${items.indexOf(item)})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                        <button onclick="deleteItem(${items.indexOf(item)})" class="text-red-600 hover:text-red-900">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+            updateStatistics();
+        }
+
+        // Add button to the form
+        function addButton(button = null) {
+            const container = document.getElementById('buttonsContainer');
+            const buttonDiv = document.createElement('div');
+            buttonDiv.className = 'border p-2 rounded';
+            buttonDiv.innerHTML = `
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Label</label>
+                        <input type="text" class="button-label mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="${button?.label || ''}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Group</label>
+                        <input type="text" class="button-group mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="${button?.group || ''}">
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <label class="block text-sm font-medium text-gray-700">Action (Lua function)</label>
+                    <input type="text" class="button-action mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="${button?.action || 'function(slot) print("Button clicked") end'}">
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="mt-2 text-red-600 hover:text-red-800">
+                    Remove Button
+                </button>
+            `;
+            container.appendChild(buttonDiv);
+        }
+
+        // Add custom field to the form
+        function addCustomField(type, field = null) {
+            const container = document.getElementById('customFieldsContainer');
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'border p-2 rounded';
+            
+            if (type === 'simple') {
+                fieldDiv.innerHTML = `
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Key</label>
+                            <input type="text" class="custom-key mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="${field?.key || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Value</label>
+                            <input type="text" class="custom-value mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="${field?.value || ''}">
+                        </div>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" class="mt-2 text-red-600 hover:text-red-800">
+                        Remove Field
+                    </button>
+                `;
+            } else {
+                fieldDiv.innerHTML = `
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Object Key</label>
+                            <input type="text" class="custom-object-key mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="${field?.key || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Object Properties (JSON)</label>
+                            <textarea class="custom-object-value mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" rows="3">${field?.value ? JSON.stringify(field.value, null, 2) : '{}'}</textarea>
+                        </div>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" class="mt-2 text-red-600 hover:text-red-800">
+                        Remove Field
+                    </button>
+                `;
+            }
+            container.appendChild(fieldDiv);
+        }
+
+        // Show modal for adding new item
+        function showAddModal() {
+            window.pendingImageUpload = null; // Clear any pending upload
+            document.getElementById('modalTitle').textContent = 'Add New Item';
+            document.getElementById('itemForm').reset();
+            document.getElementById('itemId').value = '';
+            document.getElementById('buttonsContainer').innerHTML = '';
+            document.getElementById('customFieldsContainer').innerHTML = '';
+            document.getElementById('itemModal').classList.add('active');
+        }
+
+        // Show modal for editing item
+        function editItem(index) {
+            window.pendingImageUpload = null; // Clear any pending upload
+            const item = items[index];
+            document.getElementById('modalTitle').textContent = 'Edit Item';
+            document.getElementById('itemId').value = index;
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('itemLabel').value = item.label;
+            document.getElementById('itemWeight').value = item.weight || '';
+            document.getElementById('itemDegrade').value = item.degrade || '';
+            document.getElementById('itemConsume').value = item.consume || '';
+            document.getElementById('itemStack').checked = item.stack || false;
+            
+            // Client properties
+            if (item.client) {
+                document.getElementById('clientAnim').value = item.client.anim || '';
+                document.getElementById('clientProp').value = item.client.prop || '';
+                document.getElementById('clientUseTime').value = item.client.usetime || '';
+                document.getElementById('clientNotification').value = item.client.notification || '';
+                document.getElementById('clientStatus').value = item.client.status ? JSON.stringify(item.client.status, null, 2) : '';
+                document.getElementById('clientFields').classList.remove('hidden');
+
+                // Handle image type
+                if (item.client.image) {
+                    document.getElementById('imageTypeLocal').checked = true;
+                    document.getElementById('imageTypeWeb').checked = false;
+                    document.getElementById('clientImage').value = item.client.image;
+                    document.getElementById('clientImageUrl').value = '';
+                } else if (item.client.imageurl) {
+                    document.getElementById('imageTypeLocal').checked = false;
+                    document.getElementById('imageTypeWeb').checked = true;
+                    document.getElementById('clientImage').value = '';
+                    document.getElementById('clientImageUrl').value = item.client.imageurl;
+                    
+                    // Show preview for web URL
+                    const preview = document.getElementById('imagePreview');
+                    preview.classList.remove('hidden');
+                    preview.querySelector('img').src = item.client.imageurl;
+                }
+                toggleImageInput();
+            }
+            
+            // Server properties
+            if (item.server) {
+                document.getElementById('serverExport').value = item.server.export || '';
+                document.getElementById('serverFields').classList.remove('hidden');
+            }
+            
+            // Buttons
+            document.getElementById('buttonsContainer').innerHTML = '';
+            if (item.buttons) {
+                item.buttons.forEach(button => addButton(button));
+                document.getElementById('buttonsFields').classList.remove('hidden');
+            }
+
+            // Custom fields
+            document.getElementById('customFieldsContainer').innerHTML = '';
+            Object.entries(item).forEach(([key, value]) => {
+                if (!['name', 'label', 'weight', 'degrade', 'consume', 'client', 'server', 'buttons'].includes(key)) {
+                    if (typeof value === 'object' && value !== null) {
+                        addCustomField('object', { key, value });
+                    } else {
+                        addCustomField('simple', { key, value });
+                    }
+                }
+            });
+            
+            document.getElementById('itemModal').classList.add('active');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('itemModal').classList.remove('active');
+        }
+
+        // Toggle between local path and web URL inputs
+        function toggleImageInput() {
+            const isLocal = document.getElementById('imageTypeLocal').checked;
+            document.getElementById('localImageInput').classList.toggle('hidden', !isLocal);
+            document.getElementById('webImageInput').classList.toggle('hidden', isLocal);
+            
+            // Clear the other input when switching
+            if (isLocal) {
+                document.getElementById('clientImageUrl').value = '';
+                document.getElementById('imagePreview').classList.add('hidden');
+            } else {
+                document.getElementById('clientImage').value = '';
+            }
+        }
+
+        // Handle image upload preview
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Show preview using FileReader
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                preview.classList.remove('hidden');
+                preview.querySelector('img').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            // Store the file for later upload
+            window.pendingImageUpload = file;
+        }
+
+        // Handle form submission
+        async function handleSubmit(event) {
+            event.preventDefault();
+            const id = document.getElementById('itemId').value;
+            const item = {
+                name: document.getElementById('itemName').value,
+                label: document.getElementById('itemLabel').value,
+                weight: parseFloat(document.getElementById('itemWeight').value) || 0,
+                degrade: parseFloat(document.getElementById('itemDegrade').value) || 0,
+                consume: parseFloat(document.getElementById('itemConsume').value) || 0,
+                stack: document.getElementById('itemStack').checked
+            };
+
+            // Client properties
+            if (document.getElementById('clientFields').classList.contains('hidden') === false) {
+                item.client = {
+                    anim: document.getElementById('clientAnim').value,
+                    prop: document.getElementById('clientProp').value,
+                    usetime: parseFloat(document.getElementById('clientUseTime').value) || 0,
+                    notification: document.getElementById('clientNotification').value
+                };
+
+                // Handle image based on selected type
+                const isLocal = document.getElementById('imageTypeLocal').checked;
+                if (isLocal) {
+                    const localPath = document.getElementById('clientImage').value;
+                    if (localPath) item.client.image = localPath;
+                } else {
+                    // If there's a pending image upload, handle it
+                    if (window.pendingImageUpload) {
+                        try {
+                            const formData = new FormData();
+                            formData.append('image', window.pendingImageUpload);
+                            
+                            const response = await fetch('/upload-image', {
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Upload failed');
+                            }
+
+                            const data = await response.json();
+                            item.client.imageurl = data.url;
+                            // Clear the pending upload
+                            window.pendingImageUpload = null;
+                        } catch (error) {
+                            console.error('Upload error:', error);
+                            alert('Failed to upload image. Please try again.');
+                            return;
+                        }
+                    } else {
+                        // If no pending upload, use the URL directly
+                        const webUrl = document.getElementById('clientImageUrl').value;
+                        if (webUrl) item.client.imageurl = webUrl;
+                    }
+                }
+
+                try {
+                    const status = JSON.parse(document.getElementById('clientStatus').value);
+                    if (status) item.client.status = status;
+                } catch (e) {
+                    console.error('Invalid status JSON:', e);
+                }
+            }
+
+            // Server properties
+            const serverExport = document.getElementById('serverExport').value;
+            if (serverExport) {
+                item.server = { export: serverExport };
+            }
+
+            // Buttons
+            const buttons = [];
+            document.querySelectorAll('#buttonsContainer > div').forEach(div => {
+                buttons.push({
+                    label: div.querySelector('.button-label').value,
+                    group: div.querySelector('.button-group').value,
+                    action: div.querySelector('.button-action').value
+                });
+            });
+            if (buttons.length > 0) {
+                item.buttons = buttons;
+            }
+
+            // Custom fields
+            document.querySelectorAll('#customFieldsContainer > div').forEach(div => {
+                const keyInput = div.querySelector('.custom-key, .custom-object-key');
+                const valueInput = div.querySelector('.custom-value, .custom-object-value');
+                
+                if (keyInput && valueInput) {
+                    const key = keyInput.value;
+                    let value = valueInput.value;
+                    
+                    // Try to parse JSON for object fields
+                    if (valueInput.classList.contains('custom-object-value')) {
+                        try {
+                            value = JSON.parse(value);
+                        } catch (e) {
+                            console.error('Invalid JSON for custom field:', e);
+                            return;
+                        }
+                    }
+                    
+                    item[key] = value;
+                }
+            });
+
+            if (id === '') {
+                items.push(item);
+            } else {
+                items[parseInt(id)] = item;
+            }
+
+            await saveItems();
+            displayItems();
+            closeModal();
+        }
+
+        // Delete item
+        async function deleteItem(index) {
+            if (!confirm('Are you sure you want to delete this item?')) return;
+            
+            try {
+                const response = await fetch(`/items/${index}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Failed to delete item');
+                
+                items.splice(index, 1);
+                displayItems();
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                alert('Failed to delete item. Please try again.');
+            }
+        }
+
+        // Export items as Lua table
+        function exportItems() {
+            window.location.href = '/items.lua';
+        }
+
+        // Show import modal
+        function showImportModal() {
+            document.getElementById('importModal').classList.add('active');
+        }
+
+        // Close import modal
+        function closeImportModal() {
+            document.getElementById('importModal').classList.remove('active');
+            document.getElementById('luaImport').value = '';
+        }
+
+        // Parse Lua table to JavaScript object
+        function parseLuaTable(luaCode) {
+            try {
+                // Remove any leading/trailing whitespace
+                luaCode = luaCode.trim();
+                
+                // If it's a single item (not wrapped in {}), wrap it
+                if (!luaCode.startsWith('{')) {
+                    luaCode = '{' + luaCode + '}';
+                }
+
+                // Convert Lua syntax to JavaScript
+                let jsCode = luaCode
+                    // First, handle the table key syntax
+                    .replace(/\[['"]([^'"]+)['"]\]\s*=\s*/g, '"$1":') // Convert ['key'] = to "key":
+                    // Then handle the property assignments
+                    .replace(/([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*/g, '"$1":') // Convert key = to "key":
+                    // Handle string values
+                    .replace(/'([^']*)'/g, '"$1"') // Replace single-quoted strings with double quotes
+                    // Handle boolean and nil values
+                    .replace(/\btrue\b/g, 'true')
+                    .replace(/\bfalse\b/g, 'false')
+                    .replace(/\bnil\b/g, 'null')
+                    // Handle numeric values (ensure they're not inside strings)
+                    .replace(/([^"'])\b(\d+\.?\d*)\b([^"'])/g, '$1$2$3');
+
+                // Parse the JavaScript object
+                const items = JSON.parse(jsCode);
+                return items;
+            } catch (error) {
+                console.error('Lua code:', luaCode);
+                console.error('Converted JS code:', jsCode);
+                throw new Error('Invalid Lua syntax: ' + error.message);
+            }
+        }
+
+        // Import items from Lua
+        async function importLuaItems() {
+            const luaCode = document.getElementById('luaImport').value.trim();
+            if (!luaCode) {
+                alert('Please enter Lua code to import');
+                return;
+            }
+
+            try {
+                const importedItems = parseLuaTable(luaCode);
+                
+                // Convert the imported items to our format
+                const newItems = Object.entries(importedItems).map(([name, item]) => ({
+                    name,
+                    ...item
+                }));
+
+                // Add new items to the existing items
+                items = [...items, ...newItems];
+                
+                // Save to server
+                await saveItems();
+                
+                // Update display
+                displayItems();
+                
+                // Close modal
+                closeImportModal();
+                
+                alert(`Successfully imported ${newItems.length} item(s)`);
+            } catch (error) {
+                alert('Error importing items: ' + error.message);
+            }
+        }
+
+        // Download Lua file
+        async function downloadLua() {
+            try {
+                const response = await fetch('/generate-lua');
+                if (!response.ok) throw new Error('Failed to generate Lua file');
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'items.lua';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('Error downloading Lua file:', error);
+                alert('Failed to download Lua file. Please try again.');
+            }
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            const totalItems = items.length;
+            document.getElementById('totalItems').textContent = totalItems;
+
+            // Image statistics
+            const uploadedImages = items.filter(item => item.client?.imageurl).length;
+            const localImages = items.filter(item => item.client?.image).length;
+            document.getElementById('uploadedImages').textContent = uploadedImages;
+            document.getElementById('localImages').textContent = localImages;
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                const response = await fetch('/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }
+
+        // Initial load
+        loadItems();
+    </script>
+</body>
+</html> 
