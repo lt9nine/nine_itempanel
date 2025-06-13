@@ -149,6 +149,47 @@ app.get('/items.json', (req, res) => {
     }
 });
 
+// Create new item
+app.post('/items', (req, res) => {
+    try {
+        const items = JSON.parse(fs.readFileSync('items.json', 'utf8'));
+        items.push(req.body);
+        fs.writeFileSync('items.json', JSON.stringify(items, null, 2));
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error creating item:', error);
+        res.status(500).json({ error: 'Failed to create item' });
+    }
+});
+
+// Update item
+app.put('/items/:index', (req, res) => {
+    try {
+        const index = parseInt(req.params.index);
+        const items = JSON.parse(fs.readFileSync('items.json', 'utf8'));
+        
+        // Check if item has an imageurl that needs to be deleted
+        if (items[index]?.client?.imageurl && items[index].client.imageurl !== req.body.client?.imageurl) {
+            const imageUrl = items[index].client.imageurl;
+            // Extract filename from URL
+            const filename = imageUrl.split('/').pop();
+            const filepath = path.join(__dirname, 'uploads', 'images', filename);
+            
+            // Delete the image file if it exists
+            if (fs.existsSync(filepath)) {
+                fs.unlinkSync(filepath);
+            }
+        }
+        
+        items[index] = req.body;
+        fs.writeFileSync('items.json', JSON.stringify(items, null, 2));
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating item:', error);
+        res.status(500).json({ error: 'Failed to update item' });
+    }
+});
+
 // Save items
 app.post('/save-items', (req, res) => {
     try {

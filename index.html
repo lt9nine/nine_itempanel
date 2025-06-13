@@ -1,10 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FiveM Items Manager</title>
+    <title>FiveM Item Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configure Tailwind dark mode
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#1a1a1a',
+                            card: '#2d2d2d',
+                            border: '#404040',
+                            text: '#e5e5e5',
+                            'text-secondary': '#a3a3a3'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         .modal {
             display: none;
@@ -14,7 +33,7 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
-            overflow-y: auto;
+            z-index: 1000;
         }
         .modal.active {
             display: flex;
@@ -24,25 +43,43 @@
             white-space: pre;
         }
         .collapsible {
-            border: 1px solid #e5e7eb;
-            border-radius: 0.5rem;
             margin-bottom: 1rem;
         }
         .collapsible-header {
-            padding: 0.75rem;
-            background-color: #f9fafb;
-            border-radius: 0.5rem 0.5rem 0 0;
-            cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 0.75rem;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+        }
+        .dark .collapsible-header {
+            background-color: #2d2d2d;
+            border-color: #404040;
         }
         .collapsible-content {
             padding: 1rem;
-            border-top: 1px solid #e5e7eb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+        .dark .collapsible-content {
+            border-color: #404040;
         }
         .collapsible-content.hidden {
             display: none;
+        }
+        .dark .collapsible-content > div {
+            border-color: #404040;
+        }
+        .dark .collapsible-content > div > div {
+            border-color: #404040;
+        }
+        .dark .collapsible-content button {
+            border-color: #404040;
         }
         .sort-indicator {
             display: inline-block;
@@ -60,12 +97,21 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col">
-    <nav class="bg-white text-gray-800 p-4 border-b border-gray-200">
+<body class="bg-gray-100 dark:bg-dark-bg min-h-screen flex flex-col transition-colors duration-200">
+    <nav class="bg-white dark:bg-dark-card text-gray-800 dark:text-dark-text p-4 border-b border-gray-200 dark:border-dark-border">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold">Nine's Item Manager</h1>
             <div class="flex items-center space-x-4">
-                <button onclick="logout()" class="bg-gray-50 text-gray-500 px-4 py-2 rounded hover:bg-gray-100 inline-flex items-center justify-center border border-gray-200">
+                <button onclick="toggleDarkMode()" class="bg-gray-50 dark:bg-dark-card text-gray-500 dark:text-dark-text px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-dark-bg inline-flex items-center justify-center border border-gray-200 dark:border-dark-border">
+                    <svg id="sunIcon" class="w-4 h-4 mr-2 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <svg id="moonIcon" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                    <span id="themeText">Dark Mode</span>
+                </button>
+                <button onclick="logout()" class="bg-gray-50 dark:bg-dark-card text-gray-500 dark:text-dark-text px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-dark-bg inline-flex items-center justify-center border border-gray-200 dark:border-dark-border">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                     </svg>
@@ -77,21 +123,21 @@
 
     <main class="container mx-auto p-4 flex-grow">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold">Items</h2>
+            <h2 class="text-2xl font-bold dark:text-dark-text">Items</h2>
             <div class="flex items-center gap-3">
-                <button onclick="showAddModal()" class="bg-gray-50 text-gray-500 px-4 py-2 rounded hover:bg-gray-100 inline-flex items-center justify-center border border-gray-200">
+                <button onclick="showAddModal()" class="bg-gray-50 dark:bg-dark-card text-gray-500 dark:text-dark-text px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-dark-bg inline-flex items-center justify-center border border-gray-200 dark:border-dark-border">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
                     Add Item
                 </button>
-                <button onclick="showImportModal()" class="bg-gray-50 text-gray-500 px-4 py-2 rounded hover:bg-gray-100 inline-flex items-center justify-center border border-gray-200">
+                <button onclick="showImportModal()" class="bg-gray-50 dark:bg-dark-card text-gray-500 dark:text-dark-text px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-dark-bg inline-flex items-center justify-center border border-gray-200 dark:border-dark-border">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                     </svg>
                     Import Lua
                 </button>
-                <button onclick="downloadLua()" class="bg-gray-50 text-gray-500 px-4 py-2 rounded hover:bg-gray-100 inline-flex items-center justify-center border border-gray-200">
+                <button onclick="downloadLua()" class="bg-gray-50 dark:bg-dark-card text-gray-500 dark:text-dark-text px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-dark-bg inline-flex items-center justify-center border border-gray-200 dark:border-dark-border">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                     </svg>
@@ -104,19 +150,19 @@
         <div class="mb-4 flex items-center space-x-4">
             <div class="flex-1">
                 <input type="text" id="searchInput" placeholder="Search items..." 
-                    class="w-full h-10 px-4 text-base rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    class="w-full h-10 px-4 text-base rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     oninput="filterItems()">
             </div>
             <div class="flex items-center space-x-2">
-                <label class="text-base text-gray-600">Sort by:</label>
+                <label class="text-base text-gray-600 dark:text-dark-text-secondary">Sort by:</label>
                 <select id="sortField" onchange="sortItems()" 
-                    class="h-10 px-3 text-base rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    class="h-10 px-3 text-base rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     <option value="name">Name</option>
                     <option value="label">Label</option>
                     <option value="weight">Weight</option>
                 </select>
                 <button onclick="toggleSortDirection()" id="sortDirection" 
-                    class="h-10 w-10 text-lg text-gray-600 hover:text-gray-800 flex items-center justify-center">
+                    class="h-10 w-10 text-lg text-gray-600 dark:text-dark-text-secondary hover:text-gray-800 dark:hover:text-dark-text flex items-center justify-center">
                     ↑
                 </button>
             </div>
@@ -125,26 +171,26 @@
         <div class="flex gap-6">
             <!-- Items Table -->
             <div class="flex-1">
-                <div class="bg-white rounded-lg shadow overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                <div class="bg-white dark:bg-dark-card rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
+                        <thead class="bg-gray-50 dark:bg-dark-card">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onclick="sortBy('name')">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase cursor-pointer" onclick="sortBy('name')">
                                     Name
                                     <span class="sort-indicator" data-field="name"></span>
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onclick="sortBy('label')">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase cursor-pointer" onclick="sortBy('label')">
                                     Label
                                     <span class="sort-indicator" data-field="label"></span>
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onclick="sortBy('weight')">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase cursor-pointer" onclick="sortBy('weight')">
                                     Weight
                                     <span class="sort-indicator" data-field="weight"></span>
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="itemsTable" class="bg-white divide-y divide-gray-200">
+                        <tbody id="itemsTable" class="bg-white dark:bg-dark-card divide-y divide-gray-200 dark:divide-dark-border">
                             <!-- Items will be inserted here -->
                         </tbody>
                     </table>
@@ -153,16 +199,16 @@
 
             <!-- Statistics Panel -->
             <div class="w-80">
-                <div class="bg-white rounded-lg shadow p-4">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Overview</h3>
+                <div class="bg-white dark:bg-dark-card rounded-lg shadow p-4">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-dark-text mb-4">Overview</h3>
                     <div class="space-y-4">
                         <div>
-                            <div class="text-sm text-gray-500">Total Items</div>
-                            <div class="text-2xl font-semibold text-gray-900" id="totalItems">0</div>
+                            <div class="text-sm text-gray-500 dark:text-dark-text-secondary">Total Items</div>
+                            <div class="text-2xl font-semibold text-gray-900 dark:text-dark-text" id="totalItems">0</div>
                         </div>
                         <div>
-                            <div class="text-sm text-gray-500">Uploaded Images</div>
-                            <div class="text-2xl font-semibold text-gray-900" id="uploadedImages">0</div>
+                            <div class="text-sm text-gray-500 dark:text-dark-text-secondary">Uploaded Images</div>
+                            <div class="text-2xl font-semibold text-gray-900 dark:text-dark-text" id="uploadedImages">0</div>
                         </div>
                     </div>
                 </div>
@@ -171,18 +217,18 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white text-gray-800 py-4 mt-auto border-t border-gray-200">
+    <footer class="bg-white dark:bg-dark-card text-gray-800 dark:text-dark-text py-4 mt-auto border-t border-gray-200 dark:border-dark-border">
         <div class="container mx-auto px-4 flex justify-between items-center">
             <div class="text-sm">
-                Created by Nine • <span class="text-gray-500">© 2025</span>
+                Created by Nine • <span class="text-gray-500 dark:text-dark-text-secondary">© 2025</span>
             </div>
             <div class="flex space-x-4">
-                <a href="https://discord.gg/your-discord" target="_blank" class="text-gray-500 hover:text-gray-800 transition-colors">
+                <a href="https://discord.gg/your-discord" target="_blank" class="text-gray-500 dark:text-dark-text-secondary hover:text-gray-800 dark:hover:text-dark-text transition-colors">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
                     </svg>
                 </a>
-                <a href="https://github.com/lt9nine" target="_blank" class="text-gray-500 hover:text-gray-800 transition-colors">
+                <a href="https://github.com/lt9nine" target="_blank" class="text-gray-500 dark:text-dark-text-secondary hover:text-gray-800 dark:hover:text-dark-text transition-colors">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.236 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
                     </svg>
@@ -193,51 +239,51 @@
 
     <!-- Add/Edit Modal -->
     <div id="itemModal" class="modal">
-        <div class="bg-white p-6 rounded-lg shadow-lg m-auto w-[800px]">
-            <h3 id="modalTitle" class="text-lg font-medium mb-4">Add New Item</h3>
+        <div class="bg-white dark:bg-dark-card p-6 rounded-lg shadow-lg m-auto w-[800px]">
+            <h3 id="modalTitle" class="text-lg font-medium mb-4 dark:text-dark-text">Add New Item</h3>
             <form id="itemForm" onsubmit="handleSubmit(event)" class="space-y-4">
                 <input type="hidden" id="itemId">
                 
                 <!-- Basic Fields -->
                 <div class="collapsible">
                     <div class="collapsible-header" onclick="toggleSection('basicFields')">
-                        <h4 class="font-medium">Basic Properties</h4>
-                        <span class="text-gray-500">▼</span>
+                        <h4 class="font-medium dark:text-dark-text">Basic Properties</h4>
+                        <span class="text-gray-500 dark:text-dark-text-secondary">▼</span>
                     </div>
                     <div id="basicFields" class="collapsible-content">
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Name</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Name</label>
                                 <input type="text" id="itemName" required
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Label</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Label</label>
                                 <input type="text" id="itemLabel" required
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Weight</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Weight</label>
                                 <input type="number" id="itemWeight" step="0.1"
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Degrade (minutes)</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Degrade (minutes)</label>
                                 <input type="number" id="itemDegrade" step="1"
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Consume</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Consume</label>
                                 <input type="number" id="itemConsume" step="0.1"
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Stackable</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Stackable</label>
                                 <div class="mt-1">
                                     <label class="inline-flex items-center">
                                         <input type="checkbox" id="itemStack"
-                                            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span class="ml-2 text-sm text-gray-600">Allow stacking of this item</span>
+                                            class="h-4 w-4 rounded border-gray-300 dark:border-dark-border text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2 text-sm text-gray-600 dark:text-dark-text-secondary">Allow stacking of this item</span>
                                     </label>
                                 </div>
                             </div>
@@ -248,43 +294,43 @@
                 <!-- Client Section -->
                 <div class="collapsible">
                     <div class="collapsible-header" onclick="toggleSection('clientFields')">
-                        <h4 class="font-medium">Client Properties</h4>
-                        <span class="text-gray-500">▼</span>
+                        <h4 class="font-medium dark:text-dark-text">Client Properties</h4>
+                        <span class="text-gray-500 dark:text-dark-text-secondary">▼</span>
                     </div>
                     <div id="clientFields" class="collapsible-content hidden">
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Image Type</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Image Type</label>
                                 <div class="mt-1 space-y-2">
                                     <div class="flex items-center space-x-2">
                                         <input type="radio" id="imageTypeLocal" name="imageType" value="local" checked
-                                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-dark-border"
                                             onchange="toggleImageInput()">
-                                        <label for="imageTypeLocal" class="text-sm text-gray-600">Local Filepath</label>
+                                        <label for="imageTypeLocal" class="text-sm text-gray-600 dark:text-dark-text-secondary">Local Filepath</label>
                                     </div>
                                     <div class="flex items-center space-x-2">
                                         <input type="radio" id="imageTypeWeb" name="imageType" value="web"
-                                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-dark-border"
                                             onchange="toggleImageInput()">
-                                        <label for="imageTypeWeb" class="text-sm text-gray-600">Web URL</label>
+                                        <label for="imageTypeWeb" class="text-sm text-gray-600 dark:text-dark-text-secondary">Web URL</label>
                                     </div>
                                 </div>
                             </div>
                             <div id="localImageInput">
-                                <label class="block text-sm font-medium text-gray-700">Local Filepath</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Local Filepath</label>
                                 <input type="text" id="clientImage"
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                     placeholder="e.g., images/items/weapon.png">
                             </div>
                             <div id="webImageInput" class="hidden">
-                                <label class="block text-sm font-medium text-gray-700">Web URL</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Web URL</label>
                                 <div class="mt-1 flex items-center space-x-2">
                                     <input type="text" id="clientImageUrl"
-                                        class="block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        class="block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                         placeholder="e.g., https://example.com/image.png">
                                     <input type="file" id="imageUpload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
                                     <button type="button" onclick="document.getElementById('imageUpload').click()"
-                                        class="px-3 py-2 bg-gray-50 text-gray-500 rounded hover:bg-gray-100 border border-gray-200 text-sm">
+                                        class="px-3 py-2 bg-gray-50 dark:bg-dark-card text-gray-500 dark:text-dark-text rounded hover:bg-gray-100 dark:hover:bg-dark-bg border border-gray-200 dark:border-dark-border text-sm">
                                         Upload
                                     </button>
                                 </div>
@@ -293,31 +339,31 @@
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Animation</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Animation</label>
                                 <input type="text" id="clientAnim"
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Prop</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Prop</label>
                                 <input type="text" id="clientProp"
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Use Time (ms)</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Use Time (ms)</label>
                                 <input type="number" id="clientUseTime"
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Notification</label>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Notification</label>
                                 <input type="text" id="clientNotification"
-                                    class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                     placeholder="e.g., 'You used the item'">
                             </div>
                         </div>
                         <div class="mt-2">
-                            <label class="block text-sm font-medium text-gray-700">Status Effects (JSON)</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Status Effects (JSON)</label>
                             <textarea id="clientStatus" rows="2"
-                                class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                         </div>
                     </div>
                 </div>
@@ -325,14 +371,14 @@
                 <!-- Server Section -->
                 <div class="collapsible">
                     <div class="collapsible-header" onclick="toggleSection('serverFields')">
-                        <h4 class="font-medium">Server Properties</h4>
-                        <span class="text-gray-500">▼</span>
+                        <h4 class="font-medium dark:text-dark-text">Server Properties</h4>
+                        <span class="text-gray-500 dark:text-dark-text-secondary">▼</span>
                     </div>
                     <div id="serverFields" class="collapsible-content hidden">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Server Export</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Server Export</label>
                             <input type="text" id="serverExport"
-                                class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                class="mt-1 block w-full rounded border-gray-300 dark:border-dark-border dark:bg-dark-card dark:text-dark-text shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
                     </div>
                 </div>
@@ -340,14 +386,14 @@
                 <!-- Buttons Section -->
                 <div class="collapsible">
                     <div class="collapsible-header" onclick="toggleSection('buttonsFields')">
-                        <h4 class="font-medium">Buttons</h4>
-                        <span class="text-gray-500">▼</span>
+                        <h4 class="font-medium dark:text-dark-text">Buttons</h4>
+                        <span class="text-gray-500 dark:text-dark-text-secondary">▼</span>
                     </div>
                     <div id="buttonsFields" class="collapsible-content hidden">
                         <div id="buttonsContainer" class="space-y-2">
                             <!-- Buttons will be added here -->
                         </div>
-                        <button type="button" onclick="addButton()" class="mt-2 text-blue-600 hover:text-blue-800">
+                        <button type="button" onclick="addButton()" class="mt-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
                             + Add Button
                         </button>
                     </div>
@@ -356,18 +402,18 @@
                 <!-- Custom Fields Section -->
                 <div class="collapsible">
                     <div class="collapsible-header" onclick="toggleSection('customFields')">
-                        <h4 class="font-medium">Custom Fields</h4>
-                        <span class="text-gray-500">▼</span>
+                        <h4 class="font-medium dark:text-dark-text">Custom Fields</h4>
+                        <span class="text-gray-500 dark:text-dark-text-secondary">▼</span>
                     </div>
                     <div id="customFields" class="collapsible-content hidden">
                         <div id="customFieldsContainer" class="space-y-2">
                             <!-- Custom fields will be added here -->
                         </div>
                         <div class="mt-4 space-y-2">
-                            <button type="button" onclick="addCustomField('simple')" class="text-blue-600 hover:text-blue-800">
+                            <button type="button" onclick="addCustomField('simple')" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
                                 + Add Simple Field
                             </button>
-                            <button type="button" onclick="addCustomField('object')" class="text-blue-600 hover:text-blue-800 ml-4">
+                            <button type="button" onclick="addCustomField('object')" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 ml-4">
                                 + Add Object Field
                             </button>
                         </div>
@@ -376,7 +422,7 @@
 
                 <div class="flex justify-end space-x-3 mt-4">
                     <button type="button" onclick="closeModal()"
-                        class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                        class="px-4 py-2 bg-gray-200 dark:bg-dark-card text-gray-800 dark:text-dark-text rounded hover:bg-gray-300 dark:hover:bg-dark-bg border border-gray-200 dark:border-dark-border">
                         Cancel
                     </button>
                     <button type="submit"
@@ -431,6 +477,36 @@
     </div>
 
     <script>
+        // Dark mode toggle
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const isDark = html.classList.toggle('dark');
+            const sunIcon = document.getElementById('sunIcon');
+            const moonIcon = document.getElementById('moonIcon');
+            const themeText = document.getElementById('themeText');
+            
+            if (isDark) {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                themeText.textContent = 'Light Mode';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                themeText.textContent = 'Dark Mode';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Check for saved theme preference
+        if (localStorage.getItem('theme') === 'dark' || 
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            document.getElementById('sunIcon').classList.remove('hidden');
+            document.getElementById('moonIcon').classList.add('hidden');
+            document.getElementById('themeText').textContent = 'Light Mode';
+        }
+
         // Check authentication status
         async function checkAuth() {
             try {
@@ -587,13 +663,13 @@
             const sortedItems = filterAndSortItems();
             
             table.innerHTML = sortedItems.map((item, index) => `
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap">${item.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${item.label}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${item.weight || ''}</td>
+                <tr data-index="${index}">
+                    <td class="px-6 py-4 whitespace-nowrap dark:text-dark-text">${item.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap dark:text-dark-text">${item.label}</td>
+                    <td class="px-6 py-4 whitespace-nowrap dark:text-dark-text">${item.weight || ''}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <button onclick="editItem(${items.indexOf(item)})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                        <button onclick="deleteItem(${items.indexOf(item)})" class="text-red-600 hover:text-red-900">Delete</button>
+                        <button onclick="editItem(${index})" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3">Edit</button>
+                        <button onclick="deleteItem(${index})" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Delete</button>
                     </td>
                 </tr>
             `).join('');
@@ -791,121 +867,142 @@
         // Handle form submission
         async function handleSubmit(event) {
             event.preventDefault();
-            const id = document.getElementById('itemId').value;
-            const item = {
-                name: document.getElementById('itemName').value,
-                label: document.getElementById('itemLabel').value,
-                weight: parseFloat(document.getElementById('itemWeight').value) || 0,
-                degrade: parseFloat(document.getElementById('itemDegrade').value) || 0,
-                consume: parseFloat(document.getElementById('itemConsume').value) || 0,
-                stack: document.getElementById('itemStack').checked
-            };
-
-            // Client properties
-            if (document.getElementById('clientFields').classList.contains('hidden') === false) {
-                item.client = {
-                    anim: document.getElementById('clientAnim').value,
-                    prop: document.getElementById('clientProp').value,
-                    usetime: parseFloat(document.getElementById('clientUseTime').value) || 0,
-                    notification: document.getElementById('clientNotification').value
+            
+            // Disable the submit button to prevent double submission
+            const submitButton = event.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            
+            try {
+                const id = document.getElementById('itemId').value;
+                const item = {
+                    name: document.getElementById('itemName').value,
+                    label: document.getElementById('itemLabel').value,
+                    weight: parseFloat(document.getElementById('itemWeight').value) || 0,
+                    degrade: parseFloat(document.getElementById('itemDegrade').value) || 0,
+                    consume: parseFloat(document.getElementById('itemConsume').value) || 0,
+                    stack: document.getElementById('itemStack').checked
                 };
 
-                // Handle image based on selected type
-                const isLocal = document.getElementById('imageTypeLocal').checked;
-                if (isLocal) {
-                    const localPath = document.getElementById('clientImage').value;
-                    if (localPath) item.client.image = localPath;
-                } else {
-                    // If there's a pending image upload, handle it
-                    if (window.pendingImageUpload) {
-                        try {
-                            const formData = new FormData();
-                            formData.append('image', window.pendingImageUpload);
-                            
-                            const response = await fetch('/upload-image', {
-                                method: 'POST',
-                                body: formData
-                            });
+                // Client properties
+                if (document.getElementById('clientFields').classList.contains('hidden') === false) {
+                    item.client = {
+                        anim: document.getElementById('clientAnim').value,
+                        prop: document.getElementById('clientProp').value,
+                        usetime: parseFloat(document.getElementById('clientUseTime').value) || 0,
+                        notification: document.getElementById('clientNotification').value
+                    };
 
-                            if (!response.ok) {
-                                throw new Error('Upload failed');
-                            }
-
-                            const data = await response.json();
-                            item.client.imageurl = data.url;
-                            // Clear the pending upload
-                            window.pendingImageUpload = null;
-                        } catch (error) {
-                            console.error('Upload error:', error);
-                            alert('Failed to upload image. Please try again.');
-                            return;
-                        }
+                    // Handle image based on selected type
+                    const isLocal = document.getElementById('imageTypeLocal').checked;
+                    if (isLocal) {
+                        const localPath = document.getElementById('clientImage').value;
+                        if (localPath) item.client.image = localPath;
                     } else {
-                        // If no pending upload, use the URL directly
-                        const webUrl = document.getElementById('clientImageUrl').value;
-                        if (webUrl) item.client.imageurl = webUrl;
-                    }
-                }
+                        // If there's a pending image upload, handle it
+                        if (window.pendingImageUpload) {
+                            try {
+                                const formData = new FormData();
+                                formData.append('image', window.pendingImageUpload);
+                                
+                                const response = await fetch('/upload-image', {
+                                    method: 'POST',
+                                    body: formData
+                                });
 
-                try {
-                    const status = JSON.parse(document.getElementById('clientStatus').value);
-                    if (status) item.client.status = status;
-                } catch (e) {
-                    console.error('Invalid status JSON:', e);
-                }
-            }
+                                if (!response.ok) {
+                                    throw new Error('Upload failed');
+                                }
 
-            // Server properties
-            const serverExport = document.getElementById('serverExport').value;
-            if (serverExport) {
-                item.server = { export: serverExport };
-            }
-
-            // Buttons
-            const buttons = [];
-            document.querySelectorAll('#buttonsContainer > div').forEach(div => {
-                buttons.push({
-                    label: div.querySelector('.button-label').value,
-                    group: div.querySelector('.button-group').value,
-                    action: div.querySelector('.button-action').value
-                });
-            });
-            if (buttons.length > 0) {
-                item.buttons = buttons;
-            }
-
-            // Custom fields
-            document.querySelectorAll('#customFieldsContainer > div').forEach(div => {
-                const keyInput = div.querySelector('.custom-key, .custom-object-key');
-                const valueInput = div.querySelector('.custom-value, .custom-object-value');
-                
-                if (keyInput && valueInput) {
-                    const key = keyInput.value;
-                    let value = valueInput.value;
-                    
-                    // Try to parse JSON for object fields
-                    if (valueInput.classList.contains('custom-object-value')) {
-                        try {
-                            value = JSON.parse(value);
-                        } catch (e) {
-                            console.error('Invalid JSON for custom field:', e);
-                            return;
+                                const data = await response.json();
+                                item.client.imageurl = data.url;
+                                // Clear the pending upload
+                                window.pendingImageUpload = null;
+                            } catch (error) {
+                                console.error('Upload error:', error);
+                                alert('Failed to upload image. Please try again.');
+                                submitButton.disabled = false;
+                                return;
+                            }
+                        } else {
+                            // If no pending upload, use the URL directly
+                            const webUrl = document.getElementById('clientImageUrl').value;
+                            if (webUrl) item.client.imageurl = webUrl;
                         }
                     }
-                    
-                    item[key] = value;
+
+                    try {
+                        const status = JSON.parse(document.getElementById('clientStatus').value);
+                        if (status) item.client.status = status;
+                    } catch (e) {
+                        console.error('Invalid status JSON:', e);
+                    }
                 }
-            });
 
-            if (id === '') {
-                items.push(item);
-            } else {
-                items[parseInt(id)] = item;
+                // Server properties
+                if (document.getElementById('serverFields').classList.contains('hidden') === false) {
+                    item.server = {
+                        export: document.getElementById('serverExport').value
+                    };
+                }
+
+                // Buttons
+                const buttons = [];
+                document.querySelectorAll('#buttonsContainer > div').forEach(div => {
+                    buttons.push({
+                        label: div.querySelector('.button-label').value,
+                        group: div.querySelector('.button-group').value,
+                        action: div.querySelector('.button-action').value
+                    });
+                });
+                if (buttons.length > 0) {
+                    item.buttons = buttons;
+                }
+
+                // Custom fields
+                document.querySelectorAll('#customFieldsContainer > div').forEach(div => {
+                    const keyInput = div.querySelector('.custom-key, .custom-object-key');
+                    const valueInput = div.querySelector('.custom-value, .custom-object-value');
+                    
+                    if (keyInput && valueInput) {
+                        const key = keyInput.value;
+                        let value = valueInput.value;
+                        
+                        // Try to parse JSON for object fields
+                        if (valueInput.classList.contains('custom-object-value')) {
+                            try {
+                                value = JSON.parse(value);
+                            } catch (e) {
+                                console.error('Invalid JSON for custom field:', e);
+                                return;
+                            }
+                        }
+                        
+                        item[key] = value;
+                    }
+                });
+
+                const response = await fetch(id ? `/items/${id}` : '/items', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(item)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save item');
+                }
+
+                // Close the modal and refresh the table
+                closeModal();
+                await loadItems();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to save item');
+            } finally {
+                // Re-enable the submit button
+                submitButton.disabled = false;
             }
-
-            await saveItems();
-            displayItems();
-            closeModal();
         }
 
         // Delete item
@@ -916,14 +1013,26 @@
                 const response = await fetch(`/items/${index}`, {
                     method: 'DELETE'
                 });
-                
-                if (!response.ok) throw new Error('Failed to delete item');
-                
-                items.splice(index, 1);
-                displayItems();
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete item');
+                }
+
+                // Remove the item from the table
+                const row = document.querySelector(`tr[data-index="${index}"]`);
+                if (row) {
+                    row.remove();
+                }
+
+                // Update statistics
+                updateStatistics();
             } catch (error) {
-                console.error('Error deleting item:', error);
-                alert('Failed to delete item. Please try again.');
+                console.error('Error:', error);
+                // Only show error if the item wasn't actually deleted
+                const row = document.querySelector(`tr[data-index="${index}"]`);
+                if (row) {
+                    alert('Failed to delete item');
+                }
             }
         }
 
